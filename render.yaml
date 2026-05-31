@@ -1,0 +1,25 @@
+# Render Blueprint — deploys the ProcureFlow API on the free tier.
+# In the Render dashboard: New + → Blueprint → point at this repo.
+# DATABASE_URL is set manually from your free Neon Postgres connection string.
+services:
+  - type: web
+    name: procureflow-api
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: PGSSL
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: "7d"
+      - key: DATABASE_URL
+        sync: false # paste your Neon connection string in the dashboard
+      - key: CORS_ORIGIN
+        sync: false # set to your Vercel URL, e.g. https://procureflow.vercel.app
