@@ -41,8 +41,13 @@ export default function Login() {
     <div className="min-h-screen grid lg:grid-cols-2">
       {/* Left brand panel */}
       <div className="hidden lg:flex flex-col justify-between p-12 relative overflow-hidden border-r border-border">
-        <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-brand/20 blur-3xl" />
-        <div className="absolute bottom-0 right-0 w-80 h-80 rounded-full bg-ok/10 blur-3xl" />
+        {/* Naani's storefront hero image + readability overlay */}
+        <div
+          className="absolute inset-0 bg-cover bg-center scale-105"
+          style={{ backgroundImage: "url('/naani.jpg')" }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-tr from-bg via-bg/85 to-bg/40" />
+        <div className="absolute bottom-0 right-0 w-80 h-80 rounded-full bg-brand/15 blur-3xl" />
         <div className="relative flex items-center gap-2">
           <div className="grid place-items-center w-9 h-9 rounded-lg bg-brand/15 text-brand">
             <Hexagon size={20} className="fill-brand/30" />
