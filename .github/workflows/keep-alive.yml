@@ -1,0 +1,17 @@
+name: Keep API awake
+
+# Pings the Render health endpoint every ~10 minutes so the free instance
+# never spins down (eliminates the ~50s cold-start delay on first request).
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {} # allows manual run from the Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /api/health
+        run: |
+          echo "Pinging API at $(date -u)"
+          curl -sS --max-time 60 https://procureflow-api-k3nw.onrender.com/api/health || true
