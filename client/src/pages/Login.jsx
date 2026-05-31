@@ -47,7 +47,7 @@ export default function Login() {
           <div className="grid place-items-center w-9 h-9 rounded-lg bg-brand/15 text-brand">
             <Hexagon size={20} className="fill-brand/30" />
           </div>
-          <span className="text-xl font-extrabold">ProcureFlow</span>
+          <span className="text-xl font-extrabold">Naani's ProcureFlow</span>
         </div>
         <div className="relative">
           <motion.h1
@@ -65,7 +65,7 @@ export default function Login() {
             open-source stack — Node, Postgres & React.
           </p>
         </div>
-        <div className="relative text-xs text-muted">© {new Date().getFullYear()} ProcureFlow · Open source demo</div>
+        <div className="relative text-xs text-muted">© {new Date().getFullYear()} Naani's ProcureFlow · Open source demo</div>
       </div>
 
       {/* Right form */}
@@ -77,7 +77,7 @@ export default function Login() {
         >
           <div className="lg:hidden flex items-center gap-2 mb-8 justify-center">
             <Hexagon size={22} className="text-brand fill-brand/30" />
-            <span className="text-xl font-extrabold">ProcureFlow</span>
+            <span className="text-xl font-extrabold">Naani's ProcureFlow</span>
           </div>
 
           <h2 className="text-2xl font-bold">{mode === 'login' ? 'Sign in' : 'Create account'}</h2>
