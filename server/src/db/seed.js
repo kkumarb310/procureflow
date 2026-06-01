@@ -25,11 +25,11 @@ const CATALOG = [
 ];
 
 const USERS = [
-  { name: 'Alice Tan',     email: 'alice@procureflow.dev',  role: 'requestor', department: 'IT' },
+  { name: 'Satheesh',      email: 'alice@procureflow.dev',  role: 'requestor', department: 'IT' },
   { name: 'Bob Mendes',    email: 'bob@procureflow.dev',    role: 'requestor', department: 'Finance' },
   { name: 'Carol Singh',   email: 'carol@procureflow.dev',  role: 'requestor', department: 'HR' },
   { name: 'David Kim',     email: 'david@procureflow.dev',  role: 'requestor', department: 'Operations' },
-  { name: 'Sarah Admin',   email: 'sarah@procureflow.dev',  role: 'admin',     department: 'Procurement' },
+  { name: 'Vinay',         email: 'sarah@procureflow.dev',  role: 'admin',     department: 'Procurement' },
   { name: 'Mike Receiver', email: 'mike@procureflow.dev',   role: 'admin',     department: 'Warehouse' },
 ];
 

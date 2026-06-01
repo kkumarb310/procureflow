@@ -5,8 +5,8 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 
 const DEMO = [
-  { email: 'sarah@procureflow.dev', label: 'Sarah · Admin' },
-  { email: 'alice@procureflow.dev', label: 'Alice · Requestor' },
+  { email: 'sarah@procureflow.dev', label: 'Vinay · Admin' },
+  { email: 'alice@procureflow.dev', label: 'Satheesh · Requestor' },
 ];
 
 export default function Login() {
