@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ClipboardList, Plus, Trash2, Send, Clock, Loader2, PackageOpen, CheckCircle2, List } from 'lucide-react';
+import { ClipboardList, Plus, Minus, Trash2, Send, Clock, Loader2, PackageOpen, CheckCircle2, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { api } from '../api/client';
@@ -116,53 +116,85 @@ function MyRequests({ requests, loading, counts, onNew }) {
 }
 
 // ---------------------------------------------------------------------------
-const OTHER = '__other__';
-const newRow = () => ({ key: crypto.randomUUID(), value: '', custom: '', quantity: 1 });
+const newCustomRow = () => ({ key: crypto.randomUUID(), name: '', quantity: 1 });
 
-// effective item name for a row (handles the "Other" custom case)
-const rowName = (r) => (r.value === OTHER ? r.custom.trim() : r.value.trim());
+// Small quantity stepper (− [n] +) reused for catalog rows and custom rows.
+function QtyInput({ value, onChange, onBump, min = 0 }) {
+  const dec = () => (onBump ? onBump(-1) : onChange(Math.max(min, value - 1)));
+  const inc = () => (onBump ? onBump(1) : onChange(value + 1));
+  return (
+    <div className="flex items-center gap-1 shrink-0">
+      <button type="button" onClick={dec} className="grid place-items-center w-7 h-8 rounded-lg bg-bg border border-border text-muted hover:text-text transition">
+        <Minus size={13} />
+      </button>
+      <input
+        className="input w-14 text-center !px-1"
+        type="number"
+        min={min}
+        value={value}
+        onChange={(e) => onChange(Math.max(min, parseInt(e.target.value, 10) || 0))}
+      />
+      <button type="button" onClick={inc} className="grid place-items-center w-7 h-8 rounded-lg bg-bg border border-border text-muted hover:text-text transition">
+        <Plus size={13} />
+      </button>
+    </div>
+  );
+}
 
 function NewRequest({ user, onDone }) {
-  const [rows, setRows] = useState([newRow()]);
   const [department, setDepartment] = useState(user?.department || 'IT');
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
 
-  // Admin-managed catalog used to populate the dropdown.
+  // Admin-managed catalog, pre-listed with quantity 0.
   const [catalog, setCatalog] = useState([]);
   const [loadingCatalog, setLoadingCatalog] = useState(true);
+  const [qty, setQty] = useState({});            // { [catalogItemId]: number }
+  const [customRows, setCustomRows] = useState([]); // requestor-added items, shown on top
+  const [filter, setFilter] = useState('');
 
   useEffect(() => {
     let active = true;
     api.items()
-      .then(({ items }) => active && setCatalog(items))
+      .then(({ items }) => { if (active) setCatalog(items); })
       .catch((e) => toast.error(e.message))
       .finally(() => active && setLoadingCatalog(false));
     return () => { active = false; };
   }, []);
 
-  // group catalog items by category for <optgroup>
+  const setItemQty = (id, val) => setQty((q) => ({ ...q, [id]: Math.max(0, val) }));
+  const bump = (id, delta) => setQty((q) => ({ ...q, [id]: Math.max(0, (q[id] || 0) + delta) }));
+
+  const addCustomRow = () => setCustomRows((r) => [newCustomRow(), ...r]);
+  const updateCustomRow = (key, patch) => setCustomRows((r) => r.map((x) => (x.key === key ? { ...x, ...patch } : x)));
+  const removeCustomRow = (key) => setCustomRows((r) => r.filter((x) => x.key !== key));
+
+  // catalog grouped by category, filtered by the search box
   const grouped = useMemo(() => {
+    const f = filter.trim().toLowerCase();
     const g = {};
-    for (const it of catalog) (g[it.category] ||= []).push(it);
-    return g;
-  }, [catalog]);
+    for (const it of catalog) {
+      if (f && !it.name.toLowerCase().includes(f)) continue;
+      (g[it.category] ||= []).push(it);
+    }
+    return Object.entries(g).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [catalog, filter]);
 
-  const addRow = () => setRows((r) => [...r, newRow()]);
-  const removeRow = (key) => setRows((r) => (r.length === 1 ? r : r.filter((x) => x.key !== key)));
-  const updateRow = (key, patch) => setRows((r) => r.map((x) => (x.key === key ? { ...x, ...patch } : x)));
-
-  const valid = rows.filter((r) => rowName(r));
+  // items to submit: catalog rows with qty > 0, plus named custom rows with qty > 0
+  const selectedCatalog = catalog
+    .filter((it) => (qty[it.id] || 0) > 0)
+    .map((it) => ({ name: it.name, quantity: qty[it.id] }));
+  const selectedCustom = customRows
+    .filter((r) => r.name.trim() && r.quantity > 0)
+    .map((r) => ({ name: r.name.trim(), quantity: r.quantity }));
+  const allItems = [...selectedCustom, ...selectedCatalog];
+  const total = allItems.length;
 
   const submit = async () => {
-    if (valid.length === 0) return toast.error('Add at least one item');
+    if (total === 0) return toast.error('Set a quantity for at least one item');
     setBusy(true);
     try {
-      const { request } = await api.createRequest({
-        department,
-        notes,
-        items: valid.map((r) => ({ name: rowName(r), quantity: r.quantity })),
-      });
+      const { request } = await api.createRequest({ department, notes, items: allItems });
       toast.success(`Request ${request.code} submitted!`);
       onDone();
     } catch (e) {
@@ -177,7 +209,7 @@ function NewRequest({ user, onDone }) {
       <header>
         <h1 className="text-2xl sm:text-3xl font-extrabold">New Purchase Request</h1>
         <p className="text-muted text-sm mt-1">
-          Pick items from the catalog dropdown (or choose <strong className="text-text">Other</strong> to add your own), set quantities, and submit.
+          Set a quantity for the items you need — leave the rest at <strong className="text-text">0</strong>. Need something not listed? Add it at the top.
         </p>
       </header>
 
@@ -191,75 +223,74 @@ function NewRequest({ user, onDone }) {
           </div>
         </div>
 
+        {/* Custom items added by the requestor (shown on top of the catalog) */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="label !mb-0">Items ({valid.length})</span>
-            <button onClick={addRow} className="text-xs text-brand font-semibold flex items-center gap-1 hover:underline">
-              <Plus size={13} /> Add row
+            <span className="label !mb-0">Custom items</span>
+            <button onClick={addCustomRow} className="text-xs text-brand font-semibold flex items-center gap-1 hover:underline">
+              <Plus size={13} /> Add item
             </button>
           </div>
-
-          <div className="space-y-2">
-            {rows.map((row, i) => (
-              <motion.div
-                key={row.key}
-                initial={{ opacity: 0, x: -6 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="flex items-center gap-2"
-              >
-                <span className="w-6 text-center text-xs text-muted font-mono">{i + 1}</span>
-
-                {row.value === OTHER ? (
-                  <div className="flex-1 flex items-center gap-2">
-                    <input
-                      autoFocus
-                      className="input flex-1"
-                      placeholder="Type a custom item name…"
-                      value={row.custom}
-                      onChange={(e) => updateRow(row.key, { custom: e.target.value })}
-                    />
-                    <button
-                      onClick={() => updateRow(row.key, { value: '', custom: '' })}
-                      className="grid place-items-center w-9 h-9 rounded-lg text-muted hover:text-text hover:bg-surface-2 transition shrink-0"
-                      title="Back to catalog list"
-                    >
-                      <List size={15} />
-                    </button>
-                  </div>
-                ) : (
-                  <select
+          {customRows.length === 0 ? (
+            <p className="text-xs text-muted">Not in the catalog below? Click “Add item” to enter your own.</p>
+          ) : (
+            <div className="space-y-2">
+              {customRows.map((row) => (
+                <motion.div key={row.key} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-2">
+                  <input
+                    autoFocus
                     className="input flex-1"
-                    value={row.value}
-                    disabled={loadingCatalog}
-                    onChange={(e) => updateRow(row.key, { value: e.target.value })}
+                    placeholder="Custom item name…"
+                    value={row.name}
+                    onChange={(e) => updateCustomRow(row.key, { name: e.target.value })}
+                  />
+                  <QtyInput value={row.quantity} min={1} onChange={(v) => updateCustomRow(row.key, { quantity: Math.max(1, v) })} />
+                  <button
+                    onClick={() => removeCustomRow(row.key)}
+                    className="grid place-items-center w-9 h-9 rounded-lg text-muted hover:text-danger hover:bg-danger/10 transition shrink-0"
+                    aria-label="Remove"
                   >
-                    <option value="">{loadingCatalog ? 'Loading catalog…' : 'Select an item…'}</option>
-                    {Object.entries(grouped).map(([cat, items]) => (
-                      <optgroup key={cat} label={cat}>
-                        {items.map((it) => <option key={it.id} value={it.name}>{it.name}</option>)}
-                      </optgroup>
-                    ))}
-                    <option value={OTHER}>➕ Other (add a custom item)…</option>
-                  </select>
-                )}
+                    <Trash2 size={15} />
+                  </button>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
 
-                <input
-                  className="input w-20 text-center"
-                  type="number"
-                  min="1"
-                  value={row.quantity}
-                  onChange={(e) => updateRow(row.key, { quantity: Math.max(1, parseInt(e.target.value, 10) || 1) })}
-                />
-                <button
-                  onClick={() => removeRow(row.key)}
-                  className="grid place-items-center w-9 h-9 rounded-lg text-muted hover:text-danger hover:bg-danger/10 transition shrink-0"
-                  aria-label="Remove"
-                >
-                  <Trash2 size={15} />
-                </button>
-              </motion.div>
-            ))}
+        {/* Pre-populated catalog — quantities default to 0 */}
+        <div>
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <span className="label !mb-0">Catalog{catalog.length ? ` (${catalog.length} items)` : ''}</span>
+            <div className="relative w-44">
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
+              <input className="input !py-1.5 pl-8 text-xs" placeholder="Filter…" value={filter} onChange={(e) => setFilter(e.target.value)} />
+            </div>
           </div>
+
+          {loadingCatalog ? (
+            <p className="text-sm text-muted py-8 text-center">Loading catalog…</p>
+          ) : (
+            <div className="border border-border rounded-xl overflow-hidden max-h-[440px] overflow-y-auto divide-y divide-border">
+              {grouped.length === 0 && (
+                <p className="text-sm text-muted py-8 text-center">No items match “{filter}”.</p>
+              )}
+              {grouped.map(([cat, items]) => (
+                <div key={cat}>
+                  <div className="px-4 py-1.5 bg-bg text-[10px] font-bold uppercase tracking-wider text-muted sticky top-0 z-10">{cat}</div>
+                  {items.map((it) => {
+                    const v = qty[it.id] || 0;
+                    return (
+                      <div key={it.id} className={`flex items-center gap-3 px-4 py-2.5 transition ${v > 0 ? 'bg-brand/5' : ''}`}>
+                        <span className={`flex-1 text-sm ${v > 0 ? 'text-text font-medium' : 'text-muted'}`}>{it.name}</span>
+                        <QtyInput value={v} min={0} onChange={(nv) => setItemQty(it.id, nv)} onBump={(d) => bump(it.id, d)} />
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div>
@@ -267,8 +298,8 @@ function NewRequest({ user, onDone }) {
           <textarea className="input min-h-[80px] resize-y" placeholder="Optional context for the approver…" value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
 
-        <button onClick={submit} disabled={busy || valid.length === 0} className="btn-primary w-full">
-          {busy ? <Loader2 size={16} className="animate-spin" /> : <><Send size={16} /> Submit request ({valid.length} items)</>}
+        <button onClick={submit} disabled={busy || total === 0} className="btn-primary w-full">
+          {busy ? <Loader2 size={16} className="animate-spin" /> : <><Send size={16} /> Submit request ({total} item{total === 1 ? '' : 's'})</>}
         </button>
       </div>
     </div>
