@@ -169,15 +169,10 @@ function NewRequest({ user, onDone }) {
   const updateCustomRow = (key, patch) => setCustomRows((r) => r.map((x) => (x.key === key ? { ...x, ...patch } : x)));
   const removeCustomRow = (key) => setCustomRows((r) => r.filter((x) => x.key !== key));
 
-  // catalog grouped by category, filtered by the search box
-  const grouped = useMemo(() => {
+  // catalog filtered by the search box (flat list — no category grouping)
+  const filtered = useMemo(() => {
     const f = filter.trim().toLowerCase();
-    const g = {};
-    for (const it of catalog) {
-      if (f && !it.name.toLowerCase().includes(f)) continue;
-      (g[it.category] ||= []).push(it);
-    }
-    return Object.entries(g).sort((a, b) => a[0].localeCompare(b[0]));
+    return f ? catalog.filter((it) => it.name.toLowerCase().includes(f)) : catalog;
   }, [catalog, filter]);
 
   // items to submit: catalog rows with qty > 0, plus named custom rows with qty > 0
@@ -272,23 +267,18 @@ function NewRequest({ user, onDone }) {
             <p className="text-sm text-muted py-8 text-center">Loading catalog…</p>
           ) : (
             <div className="border border-border rounded-xl overflow-hidden max-h-[440px] overflow-y-auto divide-y divide-border">
-              {grouped.length === 0 && (
+              {filtered.length === 0 && (
                 <p className="text-sm text-muted py-8 text-center">No items match “{filter}”.</p>
               )}
-              {grouped.map(([cat, items]) => (
-                <div key={cat}>
-                  <div className="px-4 py-1.5 bg-bg text-[10px] font-bold uppercase tracking-wider text-muted sticky top-0 z-10">{cat}</div>
-                  {items.map((it) => {
-                    const v = qty[it.id] || 0;
-                    return (
-                      <div key={it.id} className={`flex items-center gap-3 px-4 py-2.5 transition ${v > 0 ? 'bg-brand/5' : ''}`}>
-                        <span className={`flex-1 text-sm ${v > 0 ? 'text-text font-medium' : 'text-muted'}`}>{it.name}</span>
-                        <QtyInput value={v} min={0} onChange={(nv) => setItemQty(it.id, nv)} onBump={(d) => bump(it.id, d)} />
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
+              {filtered.map((it) => {
+                const v = qty[it.id] || 0;
+                return (
+                  <div key={it.id} className={`flex items-center gap-3 px-4 py-2.5 transition ${v > 0 ? 'bg-brand/5' : ''}`}>
+                    <span className={`flex-1 text-sm ${v > 0 ? 'text-text font-medium' : 'text-muted'}`}>{it.name}</span>
+                    <QtyInput value={v} min={0} onChange={(nv) => setItemQty(it.id, nv)} onBump={(d) => bump(it.id, d)} />
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
